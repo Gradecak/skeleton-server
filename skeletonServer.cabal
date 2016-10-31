@@ -19,5 +19,3 @@ executable skeletonServer
   build-depends:       base >= 4.7 && < 5,
                        network,
                        bytestring
-  other-modules:       Server,
-                       Http
