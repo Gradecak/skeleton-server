@@ -36,7 +36,7 @@ updateMutex mv op = do
   simultaneous server connections -}
 handle :: Net.Socket -> String -> IO ()
 handle sock inf = do
-  msg <- readAll sock 1 (return []) -- read the entire message from the socket
+  msg <- recv sock 4096 -- readAll sock 1 (return []) -- read the entire message from the socket
   print $ "Message = " ++ unpack msg
   unless (B.null msg) $ action sock (unpack msg) inf >> handle sock inf
   print "Im back yo"
