@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad (unless, void )
 import Control.Concurrent (forkFinally, forkIO)
+import Network.Info (getNetworkInterfaces, ipv4)
 import Control.Concurrent.MVar (MVar, takeMVar, putMVar, newMVar)
 import Network.Socket.ByteString (recv, send)
 import qualified Data.ByteString as B
@@ -78,6 +79,6 @@ runServer sock n inf = do
 main :: IO ()
 main = do
   [host, port, n] <- getArgs
+  ns <- getNetworkInterfaces
   sock <- initServer host port -- intialise the server socket
-  runServer sock  (read n :: Int) $ "IP:"++host++"\nPort:"++port++"\nSudentID:13319506\n"
-
+  runServer sock  (read n :: Int) $ "IP:"++show (ipv4 $ head ns)++"\nPort:"++port++"\nSudentID:13319506\n"
