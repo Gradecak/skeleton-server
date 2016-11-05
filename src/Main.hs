@@ -14,34 +14,34 @@ import System.Environment (getArgs)
 {- Initialise the socket that will be used for the server-}
 initSocket :: String -> String -> IO Net.Socket
 initSocket host port = do
-  let hints = Net.defaultHints { Net.addrSocketType = Net.Stream }
-  addr:_ <- Net.getAddrInfo (Just hints) (Just host) (Just port)
-  print addr
-  sock <- Net.socket (Net.addrFamily addr) (Net.addrSocketType addr) (Net.addrProtocol addr)
+  addr:_ <- Net.getAddrInfo Nothing (Just host) (Just port)
+  sock <- Net.socket (Net.addrFamily addr) Net.Stream  Net.defaultProtocol-- (Net.addrProtocol addr)
   Net.bind sock (Net.addrAddress addr)
   return sock
 
 {- A set of actions that the server will perform on recieveing keyword string -}
 action :: Net.Socket -> String -> String -> IO ()
-action s msg inf | "HELO" `isInfixOf` msg   = void  $ send s (pack $ msg++ inf)
-                 | "KILL_SERVICE\n" == msg  = exitSuccess
-                 | otherwise                = return ()
+action s msg inf | "HELO" `isInfixOf` msg   = void  $ send s (pack $ msg++inf) -- send back info
+                 | "KILL_SERVICE\n" == msg  = exitSuccess                      --terminate thread
+                 | otherwise                = return ()                        -- do nothing
 
-{- Preforms an operation on a the contents of a mutex variable while maintaining atomicity -}
+{- higher order function for preforming an operation on a the contents
+   of a mutex variable while maintaining atomicity -}
 updateMutex :: MVar a -> (a -> a) -> IO ()
 updateMutex mv op = do
   x <- takeMVar mv
   putMVar mv (op x)
 
-{- Handle an incoming connection, ideally should be run on a new thread to allow multiple
+{- Handle an incoming connection, runs on a new thread to allow multiple
   simultaneous server connections -}
 handleIncoming :: Net.Socket -> String -> IO ()
 handleIncoming sock inf = do
-  msg <- recv sock 4096 
+  msg <- recv sock 4096
   print $ "Message = " ++ unpack msg
   unless (B.null msg) $ action sock (unpack msg) inf >> handleIncoming sock inf
 
-{- Handles the termination of connection handling threads -}
+{- Handles the termination of connection handling threads
+   Closes socket and updates available threads count before -}
 endThread :: Net.Socket -> MVar Int -> IO ()
 endThread s m = Net.close s >> updateMutex m (+1)
 
@@ -58,8 +58,8 @@ runServer sock n inf = do
   loop threads
   where loop mu =  do
           (conn,_) <- Net.accept sock  -- accept incoming connection
-          x <- takeMVar mu
-          putMVar mu x
+          x <- takeMVar mu             -- take value from mutex
+          putMVar mu x                 -- return mutex lock
           if x == 0                    -- if no free threads available
             then Net.close conn >> loop mu
             else do
@@ -72,4 +72,5 @@ main :: IO ()
 main = do
   [host, port, n] <- getArgs
   sock <- initSocket host port -- intialise the server socket
+  putStrLn $ "staring server on " ++ host ++ ":" ++ port 
   runServer sock  (read n :: Int) $ "IP:10.62.0.104\nPort:"++port++"\nStudentID:13319506\n"
